@@ -10,7 +10,7 @@ from aiohttp import web
 #  CONFIGURAÇÕES
 # ─────────────────────────────────────────────
 BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
-MP_ACCESS_TOKEN = "APP_USR-8975459559418210-061015-9b0a861aea2d3841a9e63ad76f6ece63-3465104524"
+MP_ACCESS_TOKEN = "APP_USR-8417097908862425-061015-3456e7037ac72b3c4fe77f477d91825a-3331181571"
 GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
 
