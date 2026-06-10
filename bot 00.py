@@ -12,7 +12,7 @@ from aiohttp import web
 BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
 MP_ACCESS_TOKEN = "APP_USR-8975459559418210-061015-9b0a861aea2d3841a9e63ad76f6ece63-3465104524"
 GRUPO_VIP_ID = -1003798821382
-WEBHOOK_URL = "COLOCAR_URL_DO_RAILWAY_AQUI"
+WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
 
 PLANOS = {
     "mensal": {"nome": "Acesso Mensal", "preco": 29.90, "dias": 30},
