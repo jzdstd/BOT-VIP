@@ -81,7 +81,11 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "payer": {"email": f"{user.id}@telegram.bot"},
         "external_reference": f"{user.id}_{chave}",
         "notification_url": f"{WEBHOOK_URL}/webhook",
-        "payment_methods": {"excluded_payment_types": []},
+        "payment_methods": {
+            "excluded_payment_types": [
+                {"id": "ticket"}
+            ]
+        },
         "back_urls": {
             "success": f"{WEBHOOK_URL}/sucesso",
             "failure": f"{WEBHOOK_URL}/falha",
@@ -98,7 +102,7 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     keyboard = [
-        [InlineKeyboardButton("💳 Pagar agora", url=link_pagamento)],
+        [InlineKeyboardButton("💳 Pagar agora (PIX/Cartão)", url=link_pagamento)],
         [InlineKeyboardButton("🔙 Voltar", callback_data="ver_planos")],
     ]
 
