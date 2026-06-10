@@ -1,9 +1,8 @@
-import os
 import logging
 import asyncio
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-import mercadopago
 from aiohttp import web
 
 # ─────────────────────────────────────────────
@@ -15,18 +14,20 @@ GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
 
 PLANOS = {
-    "mensal": {"nome": "Acesso Mensal", "preco": 29.90, "dias": 30},
+    "mensal":     {"nome": "Acesso Mensal",     "preco": 29.90, "dias": 30},
     "trimestral": {"nome": "Acesso Trimestral", "preco": 69.90, "dias": 90},
-    "anual": {"nome": "Acesso Anual", "preco": 199.90, "dias": 365},
+    "anual":      {"nome": "Acesso Anual",       "preco": 199.90, "dias": 365},
 }
 # ─────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
+# Guarda pagamentos pendentes: payment_id -> user_id
+pagamentos_pendentes = {}
 
 
+# ── /start ───────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     keyboard = [
@@ -42,6 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ── Ver planos ───────────────────────────────
 async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -58,6 +60,7 @@ async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ── Gera PIX ─────────────────────────────────
 async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -69,52 +72,75 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = query.from_user
 
-    preference_data = {
-        "items": [
-            {
-                "title": plano["nome"],
-                "quantity": 1,
-                "unit_price": plano["preco"],
-                "currency_id": "BRL",
-            }
-        ],
-        "payer": {"email": f"{user.id}@telegram.bot"},
+    await query.edit_message_text("⏳ Gerando seu PIX, aguarde...")
+
+    payload = {
+        "transaction_amount": plano["preco"],
+        "description": plano["nome"],
+        "payment_method_id": "pix",
         "external_reference": f"{user.id}_{chave}",
         "notification_url": f"{WEBHOOK_URL}/webhook",
-        "payment_methods": {
-            "excluded_payment_types": [
-                {"id": "ticket"}
-            ]
-        },
-        "back_urls": {
-            "success": f"{WEBHOOK_URL}/sucesso",
-            "failure": f"{WEBHOOK_URL}/falha",
-        },
-        "auto_return": "approved",
+        "payer": {
+            "email": f"{user.id}@telegram.bot",
+            "first_name": user.first_name or "Cliente",
+            "last_name": "VIP",
+            "identification": {
+                "type": "CPF",
+                "number": "00000000000"
+            }
+        }
     }
 
-    result = sdk.preference().create(preference_data)
-    pref = result.get("response", {})
-    link_pagamento = pref.get("init_point", "")
+    headers = {
+        "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": f"{user.id}-{chave}-{int(asyncio.get_event_loop().time())}",
+    }
 
-    if not link_pagamento:
-        await query.edit_message_text("❌ Erro ao gerar pagamento. Tente novamente.")
-        return
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.mercadopago.com/v1/payments",
+                json=payload,
+                headers=headers,
+                timeout=15,
+            )
+        data = response.json()
+        logger.info(f"Resposta MP: {data}")
 
-    keyboard = [
-        [InlineKeyboardButton("💳 Pagar agora (PIX/Cartão)", url=link_pagamento)],
-        [InlineKeyboardButton("🔙 Voltar", callback_data="ver_planos")],
-    ]
+        pix_data = data.get("point_of_interaction", {}).get("transaction_data", {})
+        qr_code = pix_data.get("qr_code", "")
+        qr_image_url = pix_data.get("qr_code_base64", "")
+        payment_id = str(data.get("id", ""))
 
-    await query.edit_message_text(
-        f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
-        "Clique no botão abaixo para pagar via PIX ou cartão.\n"
-        "Após a confirmação, você será adicionado ao grupo automaticamente! 🚀",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
+        if not qr_code:
+            await query.edit_message_text(
+                "❌ Erro ao gerar PIX. Tente novamente.\n\n"
+                f"Detalhe: {data.get('message', 'Erro desconhecido')}"
+            )
+            return
+
+        # Salva pagamento pendente
+        pagamentos_pendentes[payment_id] = user.id
+
+        keyboard = [[InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")]]
+
+        await query.edit_message_text(
+            f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
+            f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
+            "👆 Toque no código acima para copiar, depois abra seu banco e cole no campo PIX.\n\n"
+            "⏰ Este PIX expira em *30 minutos*.\n"
+            "✅ Após o pagamento, você receberá o link do grupo automaticamente!",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+
+    except Exception as e:
+        logger.error(f"Erro ao gerar PIX: {e}")
+        await query.edit_message_text("❌ Erro ao gerar PIX. Tente novamente.")
 
 
+# ── Webhook Mercado Pago ──────────────────────
 async def webhook_mp(request):
     try:
         data = await request.json()
@@ -123,9 +149,15 @@ async def webhook_mp(request):
         if data.get("type") != "payment":
             return web.Response(status=200)
 
-        payment_id = data["data"]["id"]
-        payment_info = sdk.payment().get(payment_id)
-        payment = payment_info.get("response", {})
+        payment_id = str(data["data"]["id"])
+
+        headers = {"Authorization": f"Bearer {MP_ACCESS_TOKEN}"}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.mercadopago.com/v1/payments/{payment_id}",
+                headers=headers,
+            )
+        payment = response.json()
 
         if payment.get("status") != "approved":
             return web.Response(status=200)
@@ -138,8 +170,7 @@ async def webhook_mp(request):
         user_id = int(user_id_str)
         plano = PLANOS.get(plano_key)
 
-        app = request.app["bot_app"]
-        bot = app.bot
+        bot = request.app["bot"]
 
         try:
             link = await bot.create_chat_invite_link(
@@ -166,12 +197,12 @@ async def webhook_mp(request):
     return web.Response(status=200)
 
 
-async def run_web(bot_app):
+# ── Servidor web ──────────────────────────────
+async def run_web(bot):
     web_app = web.Application()
-    web_app["bot_app"] = bot_app
+    web_app["bot"] = bot
     web_app.router.add_post("/webhook", webhook_mp)
-    web_app.router.add_get("/sucesso", lambda r: web.Response(text="Pagamento aprovado! Volte ao Telegram."))
-    web_app.router.add_get("/falha", lambda r: web.Response(text="Pagamento não concluído. Tente novamente."))
+    web_app.router.add_get("/", lambda r: web.Response(text="Bot rodando!"))
 
     runner = web.AppRunner(web_app)
     await runner.setup()
@@ -180,6 +211,7 @@ async def run_web(bot_app):
     logger.info("Servidor webhook rodando na porta 8080")
 
 
+# ── Main ──────────────────────────────────────
 async def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
@@ -189,7 +221,7 @@ async def main():
 
     await app.initialize()
     await app.start()
-    await run_web(app)
+    await run_web(app.bot)
     await app.updater.start_polling()
 
     logger.info("Bot rodando...")
