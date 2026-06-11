@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 pagamentos_pendentes = {}
 
-TEXTO_APRESENTACAO = """🔥 *MEGA VIP — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
+TEXTO_APRESENTACAO = """🔥 *VEMNAFONTE — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
 
 Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 
