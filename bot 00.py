@@ -32,8 +32,6 @@ Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 
 ✅ OnlyFans e Privacidades
 ✅ Cornos e Cuckold
-✅ Novinhas
-✅ Incesto
 ✅ Lives Reais +18
 ✅ Amadores Reais
 ✅ Sexo Anal
