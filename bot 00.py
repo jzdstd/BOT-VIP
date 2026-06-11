@@ -15,10 +15,9 @@ WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
 VIDEO_FILE_ID = "AAMCAQADGQEAAUwcSGoqLmAyVc3XPxjKdOvyiSn38_m5AAIZBgACq-xYRaeHPfP6l0vUAQAHbQADOwQ"
 
 PLANOS = {
-
-    "mensal":    {"nome": "Acesso Mensal",    "preco": 15.00, "dias": 30},
-    "trimestral": {"nome": "Acesso Bimestral", "preco": 25.00, "dias": 60},
-    "vitalicio": {"nome": "Acesso Vitalício", "preco": 35.00, "dias": 36500},
+    "mensal":    {"nome": "Mensal",    "preco": 15.00, "dias": 30,    "descricao": "📅 Mensal — R$ 15,00"},
+    "trimestral":{"nome": "Trimestral","preco": 25.00, "dias": 90,    "descricao": "📆 Trimestral — R$ 25,00"},
+    "vitalicio": {"nome": "Vitalício", "preco": 35.00, "dias": 36500, "descricao": "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00"},
 }
 # ─────────────────────────────────────────────
 
@@ -45,17 +44,15 @@ Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 ✅ Atualizações Diárias
 ✅ Acesso Imediato
 
-👇 *Veja uma prévia do conteúdo e escolha seu plano!*"""
+👇 *Veja a prévia e escolha seu plano!*"""
 
 
 # ── /start ───────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Envia o vídeo de prévia com a apresentação como legenda
     keyboard = [
         [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
         [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
     ]
-
     await update.message.reply_video(
         video=VIDEO_FILE_ID,
         caption=TEXTO_APRESENTACAO,
@@ -71,16 +68,14 @@ async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = []
     for key, plano in PLANOS.items():
-        label = f"{plano['nome']} — R$ {plano['preco']:.2f}"
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"comprar_{key}")])
+        keyboard.append([InlineKeyboardButton(plano["descricao"], callback_data=f"comprar_{key}")])
 
     await query.edit_message_caption(
         caption=(
             "📦 *Escolha seu plano:*\n\n"
-            "🗓 Semanal — R$ 10,00 (7 dias)\n"
-            "📅 Mensal — R$ 15,00 (30 dias)\n"
-            "📆 Bimestral — R$ 25,00 (60 dias)\n"
-            "♾️ Vitalício — R$ 45,00\n\n"
+            "📅 Mensal — R$ 15,00\n"
+            "📆 Trimestral — R$ 25,00\n"
+            "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00\n\n"
             "👆 Selecione um plano abaixo:"
         ),
         parse_mode="Markdown",
@@ -112,10 +107,7 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "email": f"{user.id}@telegram.bot",
             "first_name": user.first_name or "Cliente",
             "last_name": "VIP",
-            "identification": {
-                "type": "CPF",
-                "number": "00000000000"
-            }
+            "identification": {"type": "CPF", "number": "00000000000"}
         }
     }
 
@@ -142,20 +134,28 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not qr_code:
             await query.edit_message_caption(
-                caption="❌ Erro ao gerar PIX. Tente novamente.\n\n"
-                f"Detalhe: {data.get('message', 'Erro desconhecido')}"
+                caption=f"❌ Erro ao gerar PIX. Tente novamente.\n\nDetalhe: {data.get('message', 'Erro desconhecido')}"
             )
             return
 
         pagamentos_pendentes[payment_id] = user.id
 
-        keyboard = [[InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")]]
+        # Salva o qr_code no contexto para o botão de copiar
+        context.user_data["qr_code"] = qr_code
+        context.user_data["plano_nome"] = plano["nome"]
+        context.user_data["plano_preco"] = plano["preco"]
+
+        keyboard = [
+            [InlineKeyboardButton("📋 Copiar código PIX", switch_inline_query=qr_code)],
+            [InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")],
+        ]
 
         await query.edit_message_caption(
             caption=(
                 f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
                 f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
-                "👆 Toque no código acima para copiar, depois abra seu banco e cole no campo PIX.\n\n"
+                "👆 *Toque no código acima para copiar!*\n"
+                "Depois abra seu banco e cole no campo PIX.\n\n"
                 "⏰ Este PIX expira em *30 minutos*.\n"
                 "✅ Após o pagamento, você receberá o link do grupo automaticamente!"
             ),
