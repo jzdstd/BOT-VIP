@@ -26,19 +26,16 @@ logger = logging.getLogger(__name__)
 
 pagamentos_pendentes = {}
 
-TEXTO_APRESENTACAO = """🔥 *Vemnafonte — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
+TEXTO_APRESENTACAO = """🔥 *VEMNAFONTE — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
 
 Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 
 ✅ OnlyFans e Privacidades
 ✅ Cornos e Cuckold
-✅ Novinhas
-✅ Incesto
 ✅ Lives Reais +18
 ✅ Amadores Reais
 ✅ Sexo Anal
 ✅ Sexo em Público
-✅ Novinhas do TikTok
 ✅ Filmes Completos
 ✅ Câmeras Escondidas
 ✅ Atualizações Diárias
