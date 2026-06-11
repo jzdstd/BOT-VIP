@@ -12,7 +12,7 @@ BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
 MP_ACCESS_TOKEN = "APP_USR-8417097908862425-061015-3456e7037ac72b3c4fe77f477d91825a-3331181571"
 GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
-VIDEO_FILE_ID = "AAMCAQADGQEAAUwcSGoqLmAyVc3XPxjKdOvyiSn38_m5AAIZBgACq-xYRaeHPfP6l0vUAQAHbQADOwQ"
+VIDEO_FILE_ID = "BAACAgEAAxkBAAFMHGxqKjK8cNuVn-DkqwchT7DSrIHmEgACGwYAAqvsWEVPy5kUkKlqnDsE"
 
 PLANOS = {
     "mensal":    {"nome": "Mensal",    "preco": 15.00, "dias": 30,    "descricao": "📅 Mensal — R$ 15,00"},
@@ -26,12 +26,14 @@ logger = logging.getLogger(__name__)
 
 pagamentos_pendentes = {}
 
-TEXTO_APRESENTACAO = """🔥 *MEGA VIP — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
+TEXTO_APRESENTACAO = """🔥 *Vemnafonte — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
 
 Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 
 ✅ OnlyFans e Privacidades
 ✅ Cornos e Cuckold
+✅ Novinhas
+✅ Incesto
 ✅ Lives Reais +18
 ✅ Amadores Reais
 ✅ Sexo Anal
