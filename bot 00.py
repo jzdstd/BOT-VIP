@@ -12,19 +12,12 @@ BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
 MP_ACCESS_TOKEN = "APP_USR-8417097908862425-061015-3456e7037ac72b3c4fe77f477d91825a-3331181571"
 GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
-VIDEO_FILE_ID = "BAACAgEAAxkBAAFMHGxqKjK8cNuVn-DkqwchT7DSrIHmEgACGwYAAqvsWEVPy5kUkKlqnDsE"
 
 PLANOS = {
-    "mensal":    {"nome": "Mensal",    "preco": 15.00, "dias": 30,    "descricao": "📅 Mensal — R$ 15,00"},
-    "trimestral":{"nome": "Trimestral","preco": 25.00, "dias": 90,    "descricao": "📆 Trimestral — R$ 25,00"},
-    "vitalicio": {"nome": "Vitalício", "preco": 35.00, "dias": 36500, "descricao": "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00"},
+    "mensal":     {"nome": "Mensal",     "preco": 15.00, "dias": 30,    "descricao": "📅 Mensal — R$ 15,00"},
+    "trimestral": {"nome": "Trimestral", "preco": 25.00, "dias": 90,    "descricao": "📆 Trimestral — R$ 25,00"},
+    "vitalicio":  {"nome": "Vitalício",  "preco": 35.00, "dias": 36500, "descricao": "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00"},
 }
-# ─────────────────────────────────────────────
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-pagamentos_pendentes = {}
 
 TEXTO_APRESENTACAO = """🔥 *VEMNAFONTE — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
 
@@ -41,24 +34,25 @@ Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 ✅ Atualizações Diárias
 ✅ Acesso Imediato
 
-👇 *Veja a prévia e escolha seu plano!*"""
+👇 *Escolha seu plano abaixo!*"""
+# ─────────────────────────────────────────────
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-# ── /start ───────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
         [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
     ]
-    await update.message.reply_video(
-        video=VIDEO_FILE_ID,
-        caption=TEXTO_APRESENTACAO,
+    await update.message.reply_text(
+        TEXTO_APRESENTACAO,
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
-# ── Ver planos ───────────────────────────────
 async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -67,20 +61,17 @@ async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key, plano in PLANOS.items():
         keyboard.append([InlineKeyboardButton(plano["descricao"], callback_data=f"comprar_{key}")])
 
-    await query.edit_message_caption(
-        caption=(
-            "📦 *Escolha seu plano:*\n\n"
-            "📅 Mensal — R$ 15,00\n"
-            "📆 Trimestral — R$ 25,00\n"
-            "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00\n\n"
-            "👆 Selecione um plano abaixo:"
-        ),
+    await query.edit_message_text(
+        "📦 *Escolha seu plano:*\n\n"
+        "📅 Mensal — R$ 15,00\n"
+        "📆 Trimestral — R$ 25,00\n"
+        "♾️ Vitalício + 5 Grupos Bônus — R$ 35,00\n\n"
+        "👆 Selecione um plano abaixo:",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
-# ── Gera PIX ─────────────────────────────────
 async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -91,8 +82,7 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = query.from_user
-
-    await query.edit_message_caption(caption="⏳ Gerando seu PIX, aguarde...")
+    await query.edit_message_text("⏳ Gerando seu PIX, aguarde...")
 
     payload = {
         "transaction_amount": plano["preco"],
@@ -127,45 +117,31 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         pix_data = data.get("point_of_interaction", {}).get("transaction_data", {})
         qr_code = pix_data.get("qr_code", "")
-        payment_id = str(data.get("id", ""))
 
         if not qr_code:
-            await query.edit_message_caption(
-                caption=f"❌ Erro ao gerar PIX. Tente novamente.\n\nDetalhe: {data.get('message', 'Erro desconhecido')}"
+            await query.edit_message_text(
+                f"❌ Erro ao gerar PIX. Tente novamente.\n\nDetalhe: {data.get('message', 'Erro desconhecido')}"
             )
             return
 
-        pagamentos_pendentes[payment_id] = user.id
+        keyboard = [[InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")]]
 
-        # Salva o qr_code no contexto para o botão de copiar
-        context.user_data["qr_code"] = qr_code
-        context.user_data["plano_nome"] = plano["nome"]
-        context.user_data["plano_preco"] = plano["preco"]
-
-        keyboard = [
-            [InlineKeyboardButton("📋 Copiar código PIX", switch_inline_query=qr_code)],
-            [InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")],
-        ]
-
-        await query.edit_message_caption(
-            caption=(
-                f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
-                f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
-                "👆 *Toque no código acima para copiar!*\n"
-                "Depois abra seu banco e cole no campo PIX.\n\n"
-                "⏰ Este PIX expira em *30 minutos*.\n"
-                "✅ Após o pagamento, você receberá o link do grupo automaticamente!"
-            ),
+        await query.edit_message_text(
+            f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
+            f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
+            "👆 Toque no código acima para copiar!\n"
+            "Depois abra seu banco e cole no campo PIX.\n\n"
+            "⏰ Este PIX expira em *30 minutos*.\n"
+            "✅ Após o pagamento você receberá o link do grupo automaticamente!",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
 
     except Exception as e:
         logger.error(f"Erro ao gerar PIX: {e}")
-        await query.edit_message_caption(caption="❌ Erro ao gerar PIX. Tente novamente.")
+        await query.edit_message_text("❌ Erro ao gerar PIX. Tente novamente.")
 
 
-# ── Webhook Mercado Pago ──────────────────────
 async def webhook_mp(request):
     try:
         data = await request.json()
@@ -209,11 +185,10 @@ async def webhook_mp(request):
                     f"Plano: {plano['nome'] if plano else plano_key}\n\n"
                     f"Use o link abaixo para entrar no grupo VIP:\n{link.invite_link}\n\n"
                     "⚠️ Este link é de uso único e exclusivo para você.\n"
-                    "Bem-vindo ao Mega VIP! 🔥"
+                    "Bem-vindo ao VemNaFonte! 🔥"
                 ),
                 parse_mode="Markdown",
             )
-            logger.info(f"Usuário {user_id} liberado com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao enviar convite: {e}")
 
@@ -223,7 +198,6 @@ async def webhook_mp(request):
     return web.Response(status=200)
 
 
-# ── Servidor web ──────────────────────────────
 async def run_web(bot):
     web_app = web.Application()
     web_app["bot"] = bot
@@ -237,7 +211,6 @@ async def run_web(bot):
     logger.info("Servidor webhook rodando na porta 8080")
 
 
-# ── Main ──────────────────────────────────────
 async def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
