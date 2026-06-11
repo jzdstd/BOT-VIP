@@ -12,13 +12,13 @@ BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
 MP_ACCESS_TOKEN = "APP_USR-8417097908862425-061015-3456e7037ac72b3c4fe77f477d91825a-3331181571"
 GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
-VIDEO_PREVIA = "https://drive.google.com/file/d/1VtOeSfNt13QgcyPdTK3RSGlsW6pWipDU/view?usp=sharing"
+VIDEO_FILE_ID = "AAMCAQADGQEAAUwcSGoqLmAyVc3XPxjKdOvyiSn38_m5AAIZBgACq-xYRaeHPfP6l0vUAQAHbQADOwQ"
 
 PLANOS = {
-    "semanal":   {"nome": "Acesso Semanal",   "preco": 10.00, "dias": 7},
+
     "mensal":    {"nome": "Acesso Mensal",    "preco": 15.00, "dias": 30},
-    "bimestral": {"nome": "Acesso Bimestral", "preco": 25.00, "dias": 60},
-    "vitalicio": {"nome": "Acesso Vitalício", "preco": 45.00, "dias": 36500},
+    "trimestral": {"nome": "Acesso Bimestral", "preco": 25.00, "dias": 60},
+    "vitalicio": {"nome": "Acesso Vitalício", "preco": 35.00, "dias": 36500},
 }
 # ─────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 pagamentos_pendentes = {}
 
-TEXTO_APRESENTACAO = """🔥 *VEMNAFONTE — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
+TEXTO_APRESENTACAO = """🔥 *MEGA VIP — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
 
 Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 
@@ -45,33 +45,22 @@ Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
 ✅ Atualizações Diárias
 ✅ Acesso Imediato
 
-👇 *Veja uma prévia do conteúdo abaixo e escolha seu plano!*"""
+👇 *Veja uma prévia do conteúdo e escolha seu plano!*"""
 
 
 # ── /start ───────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Envia o vídeo de prévia com a apresentação como legenda
     keyboard = [
         [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
         [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
     ]
 
-    # Envia o vídeo de prévia com a apresentação
-    await update.message.reply_text(
-        TEXTO_APRESENTACAO,
+    await update.message.reply_video(
+        video=VIDEO_FILE_ID,
+        caption=TEXTO_APRESENTACAO,
         parse_mode="Markdown",
-    )
-
-    # Envia o link do vídeo como botão
-    keyboard_video = [
-        [InlineKeyboardButton("🎬 Ver prévia do conteúdo", url=VIDEO_PREVIA)],
-        [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
-        [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
-    ]
-
-    await update.message.reply_text(
-        "👆 Clique acima para ver a prévia!\n\n"
-        "Pronto para entrar? Escolha seu plano abaixo 👇",
-        reply_markup=InlineKeyboardMarkup(keyboard_video),
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
@@ -85,14 +74,15 @@ async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         label = f"{plano['nome']} — R$ {plano['preco']:.2f}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"comprar_{key}")])
 
-    keyboard.append([InlineKeyboardButton("🔙 Voltar", callback_data="voltar_inicio")])
-
-    await query.edit_message_text(
-        "📦 *Escolha seu plano:*\n\n"
-        "🗓 Semanal — R$ 10,00\n"
-        "📅 Mensal — R$ 15,00\n"
-        "📆 Bimestral — R$ 25,00\n"
-        "♾️ Vitalício — R$ 45,00",
+    await query.edit_message_caption(
+        caption=(
+            "📦 *Escolha seu plano:*\n\n"
+            "🗓 Semanal — R$ 10,00 (7 dias)\n"
+            "📅 Mensal — R$ 15,00 (30 dias)\n"
+            "📆 Bimestral — R$ 25,00 (60 dias)\n"
+            "♾️ Vitalício — R$ 45,00\n\n"
+            "👆 Selecione um plano abaixo:"
+        ),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
@@ -110,7 +100,7 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = query.from_user
 
-    await query.edit_message_text("⏳ Gerando seu PIX, aguarde...")
+    await query.edit_message_caption(caption="⏳ Gerando seu PIX, aguarde...")
 
     payload = {
         "transaction_amount": plano["preco"],
@@ -151,8 +141,8 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         payment_id = str(data.get("id", ""))
 
         if not qr_code:
-            await query.edit_message_text(
-                "❌ Erro ao gerar PIX. Tente novamente.\n\n"
+            await query.edit_message_caption(
+                caption="❌ Erro ao gerar PIX. Tente novamente.\n\n"
                 f"Detalhe: {data.get('message', 'Erro desconhecido')}"
             )
             return
@@ -161,19 +151,21 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [[InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")]]
 
-        await query.edit_message_text(
-            f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
-            f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
-            "👆 Toque no código acima para copiar, depois abra seu banco e cole no campo PIX.\n\n"
-            "⏰ Este PIX expira em *30 minutos*.\n"
-            "✅ Após o pagamento, você receberá o link do grupo automaticamente!",
+        await query.edit_message_caption(
+            caption=(
+                f"✅ *{plano['nome']}* — R$ {plano['preco']:.2f}\n\n"
+                f"📋 *PIX Copia e Cola:*\n`{qr_code}`\n\n"
+                "👆 Toque no código acima para copiar, depois abra seu banco e cole no campo PIX.\n\n"
+                "⏰ Este PIX expira em *30 minutos*.\n"
+                "✅ Após o pagamento, você receberá o link do grupo automaticamente!"
+            ),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
 
     except Exception as e:
         logger.error(f"Erro ao gerar PIX: {e}")
-        await query.edit_message_text("❌ Erro ao gerar PIX. Tente novamente.")
+        await query.edit_message_caption(caption="❌ Erro ao gerar PIX. Tente novamente.")
 
 
 # ── Webhook Mercado Pago ──────────────────────
