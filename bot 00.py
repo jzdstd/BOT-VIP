@@ -12,34 +12,66 @@ BOT_TOKEN = "8527797986:AAEYpLqegi7DTfvTvsekGEDoVIcZ8dfRR1I"
 MP_ACCESS_TOKEN = "APP_USR-8417097908862425-061015-3456e7037ac72b3c4fe77f477d91825a-3331181571"
 GRUPO_VIP_ID = -1003798821382
 WEBHOOK_URL = "https://bot-vip-production-7def.up.railway.app"
+VIDEO_PREVIA = "https://drive.google.com/file/d/1VtOeSfNt13QgcyPdTK3RSGlsW6pWipDU/view?usp=sharing"
 
 PLANOS = {
-    "mensal":     {"nome": "Acesso Mensal",     "preco": 29.90, "dias": 30},
-    "trimestral": {"nome": "Acesso Trimestral", "preco": 69.90, "dias": 90},
-    "anual":      {"nome": "Acesso Anual",       "preco": 199.90, "dias": 365},
+    "semanal":   {"nome": "Acesso Semanal",   "preco": 10.00, "dias": 7},
+    "mensal":    {"nome": "Acesso Mensal",    "preco": 15.00, "dias": 30},
+    "bimestral": {"nome": "Acesso Bimestral", "preco": 25.00, "dias": 60},
+    "vitalicio": {"nome": "Acesso Vitalício", "preco": 45.00, "dias": 36500},
 }
 # ─────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Guarda pagamentos pendentes: payment_id -> user_id
 pagamentos_pendentes = {}
+
+TEXTO_APRESENTACAO = """🔥 *MEGA VIP — O MAIOR GRUPO +18 DO TELEGRAM* 🔥
+
+Juntamos tudo em um só lugar, pagando apenas *1 assinatura* você tem acesso a:
+
+✅ OnlyFans e Privacidades
+✅ Cornos e Cuckold
+✅ Novinhas
+✅ Incesto
+✅ Lives Reais +18
+✅ Amadores Reais
+✅ Sexo Anal
+✅ Sexo em Público
+✅ Novinhas do TikTok
+✅ Filmes Completos
+✅ Câmeras Escondidas
+✅ Atualizações Diárias
+✅ Acesso Imediato
+
+👇 *Veja uma prévia do conteúdo abaixo e escolha seu plano!*"""
 
 
 # ── /start ───────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
     keyboard = [
-        [InlineKeyboardButton("🛒 Ver planos", callback_data="ver_planos")],
+        [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
         [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
     ]
+
+    # Envia o vídeo de prévia com a apresentação
     await update.message.reply_text(
-        f"Olá, {user.first_name}! 👋\n\n"
-        "Bem-vindo ao nosso grupo VIP.\n"
-        "Aqui você terá acesso a conteúdo exclusivo.\n\n"
-        "Escolha uma opção abaixo:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        TEXTO_APRESENTACAO,
+        parse_mode="Markdown",
+    )
+
+    # Envia o link do vídeo como botão
+    keyboard_video = [
+        [InlineKeyboardButton("🎬 Ver prévia do conteúdo", url=VIDEO_PREVIA)],
+        [InlineKeyboardButton("🛒 Ver planos e assinar", callback_data="ver_planos")],
+        [InlineKeyboardButton("❓ Suporte", url="https://t.me/vemnafonte18")],
+    ]
+
+    await update.message.reply_text(
+        "👆 Clique acima para ver a prévia!\n\n"
+        "Pronto para entrar? Escolha seu plano abaixo 👇",
+        reply_markup=InlineKeyboardMarkup(keyboard_video),
     )
 
 
@@ -53,8 +85,14 @@ async def ver_planos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         label = f"{plano['nome']} — R$ {plano['preco']:.2f}"
         keyboard.append([InlineKeyboardButton(label, callback_data=f"comprar_{key}")])
 
+    keyboard.append([InlineKeyboardButton("🔙 Voltar", callback_data="voltar_inicio")])
+
     await query.edit_message_text(
-        "📦 *Escolha seu plano:*",
+        "📦 *Escolha seu plano:*\n\n"
+        "🗓 Semanal — R$ 10,00\n"
+        "📅 Mensal — R$ 15,00\n"
+        "📆 Bimestral — R$ 25,00\n"
+        "♾️ Vitalício — R$ 45,00",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
@@ -110,7 +148,6 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         pix_data = data.get("point_of_interaction", {}).get("transaction_data", {})
         qr_code = pix_data.get("qr_code", "")
-        qr_image_url = pix_data.get("qr_code_base64", "")
         payment_id = str(data.get("id", ""))
 
         if not qr_code:
@@ -120,7 +157,6 @@ async def comprar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Salva pagamento pendente
         pagamentos_pendentes[payment_id] = user.id
 
         keyboard = [[InlineKeyboardButton("🔙 Voltar aos planos", callback_data="ver_planos")]]
@@ -183,7 +219,8 @@ async def webhook_mp(request):
                     f"🎉 *Pagamento confirmado!*\n\n"
                     f"Plano: {plano['nome'] if plano else plano_key}\n\n"
                     f"Use o link abaixo para entrar no grupo VIP:\n{link.invite_link}\n\n"
-                    "⚠️ Este link é de uso único e exclusivo para você."
+                    "⚠️ Este link é de uso único e exclusivo para você.\n"
+                    "Bem-vindo ao Mega VIP! 🔥"
                 ),
                 parse_mode="Markdown",
             )
